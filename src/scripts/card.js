@@ -1,8 +1,7 @@
 const templateCard = document.querySelector('#card-template').content;
-const popupImage=document.querySelector('.popup_type_image');
 
 //Функция создания карточки
-function createCard(data) {
+function createCard(data, onDelete, onLike, onOpenModal) {
   const newCard=templateCard.querySelector('.card').cloneNode(true);
   const cardImage=newCard.querySelector('.card__image');
   const cardTitle=newCard.querySelector('.card__title');
@@ -13,15 +12,10 @@ function createCard(data) {
   cardImage.setAttribute('alt', `Это место - ${data.name}`);
   cardTitle.textContent=data.name;
 
-  buttonBasket.addEventListener('click', ()=>data.onDelete(newCard));
-  buttonIconHeart.addEventListener('click', data.onLike);
-  cardImage.addEventListener('click',()=>{
-    data.onOpenModal(popupImage);
-    popupImage.querySelector('.popup__image').setAttribute('src', data.link);
-    popupImage.querySelector('.popup__image').setAttribute('alt', data.name);
-    popupImage.querySelector('.popup__caption').textContent=data.name;
-  });
-
+  buttonBasket.addEventListener('click', ()=>onDelete(newCard));
+  buttonIconHeart.addEventListener('click', onLike);
+  cardImage.addEventListener('click',()=>onOpenModal(data));
+  
   return newCard;
 };
 
@@ -36,11 +30,3 @@ function clickIconHeart(evt) {
 };
 
 export {createCard, removeCard, clickIconHeart}
-
-
-
-
-
-
-
-
