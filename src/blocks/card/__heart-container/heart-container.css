@@ -1,0 +1,9 @@
+.card__heart-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;	
+}
+
+.card__heart-counter {
+  text-align: center;
+}

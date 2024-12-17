@@ -1,10 +1,10 @@
 import '../pages/index.css';
 import {createCard, removeCard, clickIconHeart} from './card.js';
-import {initialCards} from './cards.js';
 import {openModal, closeModal, closeModalByOverlay} from './modal.js';
+import {enableValidation, clearValidation} from './validation.js';
+import {loadUser, initialCards, saveProfileToServer, saveNewCardToServer, saveAvatarToServer, deleteCardFromServer, addLikeToServer, removeLikeFromServer} from './api.js';
 
 const placesList=document.querySelector('.places__list');
-
 const profileAddButton=document.querySelector('.profile__add-button');
 const profileEditButton=document.querySelector('.profile__edit-button');
 const popupAddCard=document.querySelector('.popup_type_new-card');
@@ -14,19 +14,47 @@ const profileTitle=document.querySelector('.profile__title');
 const profileDescription=document.querySelector('.profile__description');
 const formEdit=document.forms['edit-profile'];
 const formNewPlace=document.forms['new-place'];
+const profileImage=document.querySelector('.profile__image');
+const formAvatar=document.forms['edit-avatar'];
+const popupAvatar=document.querySelector('.popup_type_avatar');
+const popupDeleteCard=document.querySelector('.popup_type_delete');
+const formDeleteCard=document.forms['delete-place'];
 
-/*
-const randomIndexes = initialCards.map((item, index) => index).sort(()=>Math.random() - 0.5);
-Большое спасибо, за подсказку. Отличный способ - просто и лаконично. Но я воспользуюсь советом и перепишу на "вывод карточек по порядку", если уж все равно надо будет.
-*/
+const validationConfig={
+  formList: ".popup__form",
+  input: ".popup__input",
+  button: ".popup__button",
+  inputError: "popup__input-error",
+};
 
-for (let card of initialCards){
-  const data={
-    name: card.name,
-    link: card.link,
-  }
-  placesList.append(createCard(data, removeCard, clickIconHeart, loadAndOpenPopupImage));
-}
+Promise.all([loadUser(),initialCards()])
+  .then(([infoProfile, infoCards])=>{
+    profileTitle.textContent=infoProfile.name;
+    profileDescription.textContent=infoProfile.about.replace(/\,/,' -');
+    profileImage.style.backgroundImage=`url(${infoProfile.avatar})`;
+
+    infoCards.forEach((card)=>{
+      const data={
+        name: card.name,
+        link: card.link,
+        likes: card.likes.length,
+        owner: card.owner["_id"]===infoProfile["_id"],
+        id: card["_id"],
+        isLiked: checkIsLiked(card.likes, infoProfile["_id"]),
+      }
+      placesList.append(createCard(data, showPopupDeleteCard, handlerLikeHeart, loadAndOpenPopupImage));
+    });
+    console.log(`Загружено ${infoCards.length} карточек`);
+  })
+  .catch(err=>console.log(err));
+
+function checkIsLiked(likes, userId){
+  return likes.some((like)=>{
+    return like["_id"]===userId;
+  });
+};
+
+enableValidation(validationConfig);
 
 document.querySelectorAll('.popup').forEach(popup=>{
   popup.addEventListener('click', closeModalByOverlay);
@@ -61,8 +89,32 @@ profileEditButton.addEventListener('click', ()=>{
   openModal(popupEditProfile);
 });
 
+profileImage.addEventListener('click', ()=>{
+  formAvatar.reset();
+  clearValidation(popupAvatar, validationConfig);
+  openModal(popupAvatar);
+});
+
+function handlerFormAvaterSubmit(evt) {
+  evt.preventDefault();
+  const urlNewAvatar=popupAvatar.querySelector('#popup__input_avatar_url').value;
+  const button=formAvatar.querySelector('.button');
+  savingProcess(button, true);
+  saveAvatarToServer(urlNewAvatar)
+    .then((res)=>{
+      profileImage.style.backgroundImage=`url(${urlNewAvatar})`;
+      console.log(`${res.name} - изменение аватара прошло успешно`);
+    })
+    .catch(err=>console.log(err))
+    .finally(savingProcess(button,false))
+  closeModal(popupAvatar);
+}
+
+popupAvatar.addEventListener('submit', handlerFormAvaterSubmit);
+
 profileAddButton.addEventListener('click',()=>{
   formNewPlace.reset();
+  clearValidation(popupAddCard, validationConfig);
   openModal(popupAddCard);
 });
 
@@ -74,8 +126,17 @@ function handleFormEditSubmit(evt) {
   evt.preventDefault();
   const [nameInput,jobInput]=getDataFromForm(formEdit,fieldsOfForms.formEditProfile);
 
-  profileTitle.textContent=nameInput;
-  profileDescription.textContent=jobInput;
+  const button=formEdit.querySelector('.button');
+  savingProcess(button,true);
+  saveProfileToServer(nameInput,jobInput)
+    .then((res)=>{
+      profileTitle.textContent=nameInput;
+      profileDescription.textContent=jobInput;
+      console.log(`${res.name} - данные профиля успешно изменены`)
+    })
+    .catch(err=>console.log(err))
+    .finally(savingProcess(button,false));
+  
   closeModal(popupEditProfile);
 };
 
@@ -88,9 +149,20 @@ function handleFormPlaceSubmit(evt) {
   const data={
     name: namePlace,
     link: linkPlace,
+    owner: true,
   };
 
-  placesList.prepend(createCard(data,removeCard,clickIconHeart,loadAndOpenPopupImage));
+  const button=formNewPlace.querySelector('.button');
+  savingProcess(button, true);
+  saveNewCardToServer(namePlace, linkPlace)
+    .then(res=>{
+      data.likes=0;
+      data.id=res['_id'];
+      placesList.prepend(createCard(data,showPopupDeleteCard,handlerLikeHeart,loadAndOpenPopupImage));
+      console.log('Запись прошла успешно');
+    })
+    .catch(err=>console.log(err))
+    .finally(savingProcess(button, false))
   closeModal(popupAddCard);
 }
 
@@ -103,3 +175,48 @@ function loadAndOpenPopupImage(data) {
 
   openModal(popupImage);
 };
+
+function savingProcess(button, process){
+  if (process){
+    button.textContent='Сохранение...';
+  }else{
+    button.textContent='Сохранить';
+  }
+}
+
+function handlerSubmitDeleteCard(evt, deletedCard, cardId) {
+  evt.preventDefault();
+    
+  deleteCardFromServer(cardId)
+    .then((res)=>{
+      console.log(res.message);
+      removeCard(deletedCard);
+    })
+    .catch(err=>console.log(err));
+  
+  closeModal(popupDeleteCard);
+}
+
+function showPopupDeleteCard(deletedCard, cardId){
+  openModal(popupDeleteCard);
+  formDeleteCard.addEventListener('submit',(evt)=>handlerSubmitDeleteCard(evt,deletedCard, cardId));
+}
+
+function handlerLikeHeart(evt, cardImageId, heartCounter) {
+  if (evt.target.classList.contains('card__like-button_is-active')){
+    removeLikeFromServer(cardImageId)
+      .then((res)=>{
+        console.log('Like успешно удален');
+        heartCounter.textContent=res.likes.length;
+      })
+      .catch(err=>console.log(err))
+  }else{
+    addLikeToServer(cardImageId)
+      .then((res)=>{
+        console.log(`Like успешно сохранен`);
+        heartCounter.textContent=res.likes.length;
+      })
+      .catch(err=>console.log(err))
+  }
+  clickIconHeart(evt);
+}

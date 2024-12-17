@@ -20,3 +20,22 @@
     margin-right: 0;
   }
 }
+
+.profile__avatar-edit {
+  width: 120px;
+  height: 120px;
+  -webkit-border-radius: 50%;
+  -moz-border-radius: 50%;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  margin: 0 29px 0 0;
+  background-color: rgba(0,0,0,0);
+}
+
+.profile__avatar-edit:hover {
+  background-color: rgba(0,0,0,0.5);
+  background-image: url('../../../images/edit-icon.svg');
+  background-repeat: no-repeat;
+  background-size: 20%;
+}
