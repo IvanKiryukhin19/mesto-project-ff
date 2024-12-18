@@ -20,7 +20,7 @@ function createCard(data, onDelete, onLike, onOpenModal) {
   if (data.isLiked) buttonIconHeart.classList.add('card__like-button_is-active');
 
   if (data.owner){
-    buttonBasket.addEventListener('click', ()=>onDelete(newCard,data.id));
+    buttonBasket.addEventListener('click', ()=>onDelete(data.id));
   }else{
     buttonBasket.setAttribute('hidden', true);
   }

@@ -95,22 +95,22 @@ profileImage.addEventListener('click', ()=>{
   openModal(popupAvatar);
 });
 
-function handlerFormAvaterSubmit(evt) {
+function handlerFormAvatarSubmit(evt) {
   evt.preventDefault();
   const urlNewAvatar=popupAvatar.querySelector('#popup__input_avatar_url').value;
-  const button=formAvatar.querySelector('.button');
-  savingProcess(button, true);
+  
+  savingProcess(evt.submitter, true);
   saveAvatarToServer(urlNewAvatar)
     .then((res)=>{
       profileImage.style.backgroundImage=`url(${urlNewAvatar})`;
       console.log(`${res.name} - изменение аватара прошло успешно`);
+      closeModal(popupAvatar);
     })
     .catch(err=>console.log(err))
-    .finally(savingProcess(button,false))
-  closeModal(popupAvatar);
+    .finally(savingProcess(evt.submitter,false))
 }
 
-popupAvatar.addEventListener('submit', handlerFormAvaterSubmit);
+popupAvatar.addEventListener('submit', handlerFormAvatarSubmit);
 
 profileAddButton.addEventListener('click',()=>{
   formNewPlace.reset();
@@ -126,18 +126,16 @@ function handleFormEditSubmit(evt) {
   evt.preventDefault();
   const [nameInput,jobInput]=getDataFromForm(formEdit,fieldsOfForms.formEditProfile);
 
-  const button=formEdit.querySelector('.button');
-  savingProcess(button,true);
+  savingProcess(evt.submitter,true);
   saveProfileToServer(nameInput,jobInput)
     .then((res)=>{
       profileTitle.textContent=nameInput;
       profileDescription.textContent=jobInput;
-      console.log(`${res.name} - данные профиля успешно изменены`)
+      console.log(`${res.name} - данные профиля успешно изменены`);
+      closeModal(popupEditProfile);
     })
     .catch(err=>console.log(err))
-    .finally(savingProcess(button,false));
-  
-  closeModal(popupEditProfile);
+    .finally(savingProcess(evt.submitter,false));
 };
 
 formEdit.addEventListener('submit',handleFormEditSubmit);
@@ -152,18 +150,17 @@ function handleFormPlaceSubmit(evt) {
     owner: true,
   };
 
-  const button=formNewPlace.querySelector('.button');
-  savingProcess(button, true);
+  savingProcess(evt.submitter, true);
   saveNewCardToServer(namePlace, linkPlace)
     .then(res=>{
       data.likes=0;
       data.id=res['_id'];
       placesList.prepend(createCard(data,showPopupDeleteCard,handlerLikeHeart,loadAndOpenPopupImage));
       console.log('Запись прошла успешно');
+      closeModal(popupAddCard);
     })
     .catch(err=>console.log(err))
-    .finally(savingProcess(button, false))
-  closeModal(popupAddCard);
+    .finally(savingProcess(evt.submitter, false))
 }
 
 formNewPlace.addEventListener('submit',handleFormPlaceSubmit);
@@ -184,22 +181,31 @@ function savingProcess(button, process){
   }
 }
 
-function handlerSubmitDeleteCard(evt, deletedCard, cardId) {
+//Попробую попытку без наставника)) записывая id картинки в атрибут кнопки, подтверждающей удаление карточки.
+// Не стал устанавливать атрибут через setAttribute('data-delete-image-id', ''), а добавил пустой в тег, в HTML
+
+function handlerSubmitDeleteCard(evt) {
   evt.preventDefault();
-    
+  
+  const cardId=evt.submitter.dataset.deleteImageId;
+  const deletedCard=placesList.querySelector(`[id="${cardId}"`).parentNode;
+
   deleteCardFromServer(cardId)
     .then((res)=>{
       console.log(res.message);
       removeCard(deletedCard);
+      evt.submitter.dataset.deleteImageId='';
+      closeModal(popupDeleteCard);
     })
     .catch(err=>console.log(err));
-  
-  closeModal(popupDeleteCard);
 }
 
-function showPopupDeleteCard(deletedCard, cardId){
+formDeleteCard.addEventListener('submit',handlerSubmitDeleteCard);
+
+function showPopupDeleteCard(cardId){
   openModal(popupDeleteCard);
-  formDeleteCard.addEventListener('submit',(evt)=>handlerSubmitDeleteCard(evt,deletedCard, cardId));
+  const button=popupDeleteCard.querySelector('.button');
+  button.dataset.deleteImageId=cardId;
 }
 
 function handlerLikeHeart(evt, cardImageId, heartCounter) {
@@ -208,6 +214,7 @@ function handlerLikeHeart(evt, cardImageId, heartCounter) {
       .then((res)=>{
         console.log('Like успешно удален');
         heartCounter.textContent=res.likes.length;
+        clickIconHeart(evt);
       })
       .catch(err=>console.log(err))
   }else{
@@ -215,8 +222,8 @@ function handlerLikeHeart(evt, cardImageId, heartCounter) {
       .then((res)=>{
         console.log(`Like успешно сохранен`);
         heartCounter.textContent=res.likes.length;
+        clickIconHeart(evt);
       })
       .catch(err=>console.log(err))
   }
-  clickIconHeart(evt);
 }
